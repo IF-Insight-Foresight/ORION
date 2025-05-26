@@ -1,0 +1,15 @@
+/* assets/styles.css */
+
+/* Style for Scanning Page Placeholder */
+#discovery-query::placeholder {
+    color: #A9A9A9; /* DarkGray */
+    opacity: 1; /* Ensure placeholder is fully opaque */
+    font-style: italic; /* Optional: Italicize placeholder text */
+}
+
+/* Style for Studio Page Placeholder */
+#search-box-studio::placeholder {
+    color: #A9A9A9; /* DarkGray */
+    opacity: 1;
+    font-style: italic;
+}

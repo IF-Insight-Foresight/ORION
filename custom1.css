@@ -1,0 +1,141 @@
+body {
+    font-family: "Arial", sans-serif;
+    background-color: #000;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+.navbar-translucent {
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(8px);
+}
+
+.navbar-brand-text {
+    color: cyan !important;
+    font-weight: bold;
+    letter-spacing: 3px;
+    font-size: 24px;
+    text-shadow: 0 0 8px cyan;
+}
+
+.nav-link {
+    color: lightgrey !important;
+    transition: color 0.2s;
+}
+
+.nav-link:hover {
+    color: cyan !important;
+    text-shadow: 0 0 5px cyan;
+}
+
+.hero-section {
+    position: relative;
+    text-align: center;
+    color: lightgrey;
+    padding: 60px 20px;
+    overflow: hidden;
+}
+
+.hero-section .orion-title {
+    font-size: 56px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    color: cyan;
+    text-shadow: 0px 0px 10px cyan;
+    margin-bottom: 10px;
+    animation: fadeIn 1s ease-in-out;
+}
+
+.hero-section .tagline {
+    font-size: 20px;
+    font-style: italic;
+    color: lightgrey;
+    margin-bottom: 20px;
+}
+
+.hero-section .value-proposition {
+    font-size: 16px;
+    color: #ccc;
+    max-width: 600px;
+    margin: 0 auto 40px auto;
+    line-height: 1.4;
+}
+
+.hero-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 40px;
+}
+
+.hero-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 180px;
+    height: 60px;
+    background-color: #000;
+    color: cyan;
+    border: 2px solid cyan;
+    font-size: 16px;
+    box-shadow: 0px 0px 5px cyan;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.hero-button i {
+    margin-right: 10px;
+}
+
+.hero-button:hover {
+    background-color: cyan;
+    color: #000;
+    text-shadow: none;
+    box-shadow: 0px 0px 10px cyan;
+}
+
+@keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.animated-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 50%, rgba(0,255,255,0.05), transparent 40%),
+                radial-gradient(circle at 20% 80%, rgba(0,255,255,0.05), transparent 30%),
+                radial-gradient(circle at 80% 30%, rgba(0,255,255,0.05), transparent 35%);
+    background-size: 800px 800px;
+    animation: moveBackground 30s linear infinite;
+    z-index: 0;
+}
+
+@keyframes moveBackground {
+    0% { background-position: 0px 0px; }
+    100% { background-position: 1000px 1000px; }
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+}
+
+.custom-dropdown .Select__control, .custom-dropdown .Select__value-container {
+    background-color: #000 !important;
+    color: lightgrey !important;
+    border: 1px solid grey !important;
+}
+
+.custom-dropdown .Select__option {
+    background-color: #000 !important;
+    color: lightgrey !important;
+}
+
+.custom-dropdown .Select__option--is-focused {
+    background-color: #333 !important;
+}
