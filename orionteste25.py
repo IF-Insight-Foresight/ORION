@@ -968,6 +968,46 @@ def scanning_layout():
                             "alignItems": "center"
                         }
                     ),
+                    html.Div(
+                        style={
+                            "padding": "8px 18px 8px 18px",
+                            "display": "flex",
+                            "gap": "8px"
+                        },
+                        children=[
+                            dcc.Input(
+                                id="scanning-copilot-input",
+                                type="text",
+                                placeholder="Type your prompt…",
+                                style={
+                                    "flex": "1",
+                                    "fontSize": "16px",
+                                    "borderRadius": APPLE_RADIUS,
+                                    "padding": "9px 15px",
+                                    "background": "#232323",
+                                    "color": "#fff",
+                                    "border": "1.2px solid #333"
+                                },
+                                n_submit=0,
+                                debounce=False,
+                            ),
+                            html.Button(
+                                "Send",
+                                id="scanning-copilot-send-btn",
+                                n_clicks=0,
+                                style={
+                                    "background": "#007aff",
+                                    "color": "#fff",
+                                    "border": "none",
+                                    "borderRadius": APPLE_RADIUS,
+                                    "fontWeight": "600",
+                                    "fontSize": "16px",
+                                    "padding": "8px 20px",
+                                    "marginLeft": "8px"
+                                }
+                            )
+                        ]
+                    ),
                 ]
             ),
             html.Button(
@@ -3139,7 +3179,7 @@ def update_scanning_copilot_suggestions(selected_rows, search_term):
 
 # Fill input box from suggestion click (single callback handling all suggestion buttons)
 @app.callback(
-    Output("scanning-copilot-user-input", "value"),
+    Output("scanning-copilot-input", "value"),
     Input({"type": "copilot-suggestion", "index": ALL}, "n_clicks"),
     State({"type": "copilot-suggestion", "index": ALL}, "children"),
     prevent_initial_call=True,
@@ -3154,132 +3194,69 @@ def handle_copilot_suggestion_click(n_clicks_list, suggestions):
 
 # Chat send callback: handles OpenAI reply, manages history and thread
 @app.callback(
-    [
-        Output("scanning-copilot-history", "data"),
-        Output("scanning-copilot-thread", "data"),    # New store for thread info
-        Output("scanning-copilot-user-input", "value", allow_duplicate=True),
-    ],
-    Input("scanning-copilot-send-btn", "n_clicks"),  # <<< Use this button id
-    State("scanning-copilot-user-input", "value"),
+    Output("scanning-copilot-history", "data"),
+    Output("scanning-copilot-input", "value"),
+    Input("scanning-copilot-send-btn", "n_clicks"),
+    Input({'type': 'copilot-suggestion', 'index': ALL}, "n_clicks"),
+    State("scanning-copilot-input", "value"),
     State("scanning-copilot-history", "data"),
-    State("scanning-copilot-thread", "data"),        # Thread info/history
-    State("explorer-selected-rows", "data"),
-    State("search-term", "value"),
     prevent_initial_call=True
 )
-def handle_scanning_copilot_send(n_clicks, user_input, history, thread_data, selected_rows, search_term):
-    # ... same logic as before ...
-    import sys
+def submit_copilot_prompt(send_click, suggestion_clicks, prompt, history):
+    from dash import ctx
+    triggered = ctx.triggered_id
     history = history or []
-    if not isinstance(thread_data, dict):
-        thread_data = {"thread_id": None, "messages": []}
-    # Add user message
-    user_msg = {"role": "user", "text": user_input}
-    history.append(user_msg)
-    thread_id = thread_data.get("thread_id")
-
-    # Check OpenAI client config
-    if "client" not in globals() or "assistant_id" not in globals():
-        history.append({"role": "assistant", "text": "[Error: OpenAI API client or assistant_id not defined!]"})
-        return history, thread_data, ""
-
-    # Compose context and message
+    question = None
+    if isinstance(triggered, dict) and triggered.get('type') == 'copilot-suggestion':
+        idx = triggered.get('index')
+        question = search_suggestions[idx]
+    elif send_click or (prompt and str(prompt).strip()):
+        question = prompt
+    if not question or not str(question).strip():
+        raise PreventUpdate
     try:
-        if not thread_id:
-            thread = client.beta.threads.create()
-            thread_id = thread.id
-            thread_data["thread_id"] = thread_id
-        context = ""
-        if search_term:
-            context += f"Current search: {search_term}. "
-        if selected_rows:
-            context += f"Selected driving force IDs: {selected_rows} "
-        prompt = f"{context}\nUser: {user_input}"
-        client.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=prompt
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": question}],
+            max_tokens=400,
+            temperature=0.7
         )
-        run = client.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=assistant_id
-        )
-        import time
-        while True:
-            run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-            if run.status == "completed":
-                break
-            elif run.status in ("failed", "cancelled", "expired"):
-                history.append({"role": "assistant", "text": f"[Error: Assistant run {run.status}]"})
-                return history, thread_data, ""
-            time.sleep(0.5)
-        messages = client.beta.threads.messages.list(thread_id=thread_id)
-        for m in messages.data:
-            if m.role == "assistant":
-                for content in m.content:
-                    if content.type == "text":
-                        history.append({"role": "assistant", "text": content.text.value})
-                        break
-                break
+        answer = response.choices[0].message.content
     except Exception as e:
-        history.append({"role": "assistant", "text": f"[Error: {e}]"})
-        return history, thread_data, ""
-    return history, thread_data, ""
+        answer = f"Error: {str(e)}"
+    history.append({"question": question, "answer": answer})
+    return history, ""
 
-# Render Copilot chatbox (history, input, suggestions) when panel is open
+# Update chatbox contents from history
 @app.callback(
     Output("scanning-copilot-chatbox", "children"),
-    [Input("scanning-copilot-history", "data"),
-     Input("scanning-copilot-open", "data")],
-    State("scanning-copilot-user-input", "value"),
+    Input("scanning-copilot-history", "data")
 )
-def render_scanning_copilot_chatbox(history, is_open, user_input_value):
-    if not is_open:
-        return []
+def update_chatbox(history):
     if not history:
-        bubbles = [html.Div("No messages yet.", style={"color": "#aaa", "fontSize": "15px"})]
-    else:
-        bubbles = _render_chat(history)
-    return [
-        html.Div(
-            bubbles,
-            id="scanning-copilot-history-container",
-            style={
-                "backgroundColor": "#222",
-                "padding": "14px 15px",
-                "height": "260px",
-                "overflowY": "auto",
-                "color": "#fff",
-                "fontSize": "15px"
-            }
-        ),
-        html.Div(
-            style={
-                "padding": "12px",
-                "backgroundColor": "#191d22",
-                "display": "flex",
-                "gap": "7px"
-            },
-            children=[
-                dcc.Textarea(
-                    id="scanning-copilot-user-input",
-                    placeholder="Ask AI about the selection or search…",
-                    value=user_input_value if user_input_value is not None else "",
-                    style={
-                        "flex": "1", "padding": "10px", "borderRadius": "7px",
-                        "border": "none", "backgroundColor": "#2d2d33", "color": "#fff",
-                        "fontSize": "15px"
-                    }
-                ),
-                html.Button("Send", id="scanning-copilot-send-btn", n_clicks=0,
-                            style={
-                                "backgroundColor": "#007aff", "color": "#fff",
-                                "border": "none", "borderRadius": "8px", "fontWeight": "700",
-                                "padding": "0 17px", "fontSize": "16px"
-                            })
-            ]
+        return html.Div(
+            "No messages yet. Try a suggestion or ask a question!",
+            style={"color": "#888", "padding": "12px"}
         )
-    ]
+    out = []
+    for entry in history:
+        q = entry.get("question", "")
+        a = entry.get("answer", "")
+        out.append(
+            html.Div([
+                html.Div(
+                    q,
+                    style={"background": "#222", "color": "#fff", "borderRadius": "14px",
+                           "padding": "10px", "margin": "6px 0 2px 0"}
+                ),
+                html.Div(
+                    a,
+                    style={"background": "#444", "color": "#0af", "borderRadius": "14px",
+                           "padding": "10px", "margin": "2px 0 6px 0"}
+                )
+            ])
+        )
+    return out
     
     # --- PROJECT MANAGEMENT CALLBACK: Only single, unified callback for all project management UI logic remains. ---
 # (All other @app.callback functions with outputs to project management UI components have been removed.)
@@ -3478,6 +3455,40 @@ def unified_chip_logic_filter_callback(
 
     # Default (shouldn't happen)
     raise PreventUpdate
+
+# --- Node selection persistence callbacks ---
+@app.callback(
+    Output("explorer-selected-rows", "data"),
+    Input("tsne-plot", "selectedData"),
+    State("project-selector", "value"),
+    prevent_initial_call=True
+)
+def handle_node_selection(selected, current_project):
+    if not selected:
+        selected_ids = []
+    else:
+        selected_ids = [pt.get("customdata", [None])[0] for pt in selected.get("points", [])]
+    projects[current_project]["selected_nodes"] = selected_ids
+    save_projects(projects)
+    return selected_ids
+
+
+@app.callback(
+    Output("tsne-plot", "selectedData"),
+    Input("project-selector", "value"),
+)
+def restore_selection(project_name):
+    selected = projects.get(project_name, {}).get("selected_nodes", [])
+    if not selected:
+        return None
+    points = []
+    for idx, row in data.iterrows():
+        if str(row["ID"]) in selected:
+            points.append({
+                "pointIndex": idx,
+                "customdata": [row["ID"], row["Title"], row["Driving Force"], row["Cluster"], row["Source"]]
+            })
+    return {"points": points}
 if __name__ == "__main__":
     # logger.debug("Starting ORION app...")
     with server.app_context():
