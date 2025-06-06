@@ -16,4 +16,10 @@ login_manager.init_app(server)
 app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.config.suppress_callback_exceptions = True
 
+# Import page definitions after the app instance is created so callbacks
+# register correctly. The ``pages`` module provides the top-level layout and
+# routing callbacks used by the minimal ORION dashboard.
+from . import pages
+app.layout = pages.layout()
+
 __all__ = ['app', 'server', 'db', 'login_manager']
