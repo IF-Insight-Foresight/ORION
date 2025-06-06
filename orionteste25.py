@@ -68,6 +68,10 @@ def load_projects():
     except Exception:
         return {"Default Project": default_project_state()}
 
+def save_projects(data):
+    with projects_lock, open(PROJECTS_FILE, 'w') as f:
+        json.dump(data, f, indent=2)
+
 # --- Global variable holding all projects state ---
 projects = load_projects()
 
