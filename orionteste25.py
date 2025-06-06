@@ -901,6 +901,7 @@ def scanning_layout():
             dcc.Store(id="network-spotlight-keyword", data=None),
             dcc.Store(id="explorer-selected-rows", data=[]),  # PATCH: store for explorer selected rows
             dcc.Store(id="scanning-copilot-open", data=False),
+            dcc.Store(id="scanning-copilot-thread", data={}),
             dcc.Store(id="scanning-copilot-history", data=[]),
             dcc.Store(id="search-chips", data=[]),
             # In scanning_layout(), replace Copilot panel section with this block:
@@ -1736,59 +1737,6 @@ def scanning_layout():
                     ),
                 ]
             )
-        # --- Floating AI Copilot Button and Chatbox ---
-        , html.Div([
-            dcc.Store(id="scanning-copilot-open", data=False),
-            dcc.Store(id="scanning-copilot-thread", data={}),
-            dcc.Store(id="scanning-copilot-history", data=[]),
-            html.Button(
-                "🤖",
-                id="show-scanning-copilot-btn",
-                n_clicks=0,
-                title="Ask AI about your current selection or search!",
-                style={
-                    "position": "fixed",
-                    "bottom": "34px",
-                    "right": "34px",
-                    "width": "62px",
-                    "height": "62px",
-                    "fontSize": "34px",
-                    "backgroundColor": "#007aff",
-                    "color": "#fff",
-                    "border": "none",
-                    "borderRadius": "31px",
-                    "boxShadow": "0 2px 14px #007aff66",
-                    "zIndex": 1100,
-                    "cursor": "pointer",
-                    "transition": "background 0.22s"
-                }
-            ),
-            html.Div(
-                id="scanning-copilot-chatbox",
-                style={
-                    "display": "none",
-                    "position": "fixed",
-                    "bottom": "110px",
-                    "right": "40px",
-                    "width": "420px",
-                    "maxHeight": "70vh",
-                    "backgroundColor": "#20242b",
-                    "borderRadius": "18px",
-                    "boxShadow": "0 2px 24px #2229",
-                    "padding": "0",
-                    "zIndex": 1101,
-                    "overflow": "hidden",
-                    "transition": "all 0.26s cubic-bezier(.4,1.5,.8,1)",
-                    "flexDirection": "column",
-                },
-                children=[
-                    # --- PATCH: Render chat history bubbles for scanning copilot ---
-        dcc.Store(id="scanning-copilot-history", data=[], storage_type="memory"),
-                    html.Div(id="scanning-copilot-chat-history", style={"padding": "18px", "overflowY": "auto", "maxHeight": "54vh"}),
-                    # (Input area and suggestions would be here, omitted for brevity)
-                ]
-            )
-        ], id="scanning-copilot-root")
         ]
     )
 
