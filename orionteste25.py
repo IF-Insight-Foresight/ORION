@@ -2959,36 +2959,6 @@ def unified_table_selection(
 from dash.exceptions import PreventUpdate
 
 @app.callback(
-    [Output('project-selector', 'options'),
-     Output('project-selector', 'value')],
-    Input('delete-project', 'n_clicks'),
-    [State('project-selector', 'value'),
-     State('project-selector', 'options')],
-    prevent_initial_call=True
-)
-def project_crud(delete_clicks, current_project, options):
-    ctx = dash.callback_context
-    if not ctx.triggered or not delete_clicks:
-        raise PreventUpdate
-    global projects
-    if current_project:
-        projects.pop(current_project, None)
-        if not projects:
-            projects["Default Project"] = default_project_state()
-        save_projects(projects)
-        opts = [
-            {'label': html.Span([
-                html.I(className="fa fa-plus", style={"marginRight": "7px", "color": "#0af"}), "+ New Project…"
-            ]), 'value': "__new_project__"},
-            {'label': html.Span([
-                html.Span("⭐", className="orion-project-star"), "Default Project"
-            ], className="orion-project-default"), 'value': "Default Project"}
-        ] + [{'label': n, 'value': n} for n in projects if n != "Default Project"]
-        new_current = list(projects.keys())[0]
-        return opts, new_current
-    raise PreventUpdate
-
-@app.callback(
     [Output('new-project-name', 'style'),
      Output('rename-project-name', 'style'),
      Output('confirm-new-project', 'style'),
@@ -3364,49 +3334,68 @@ def render_scanning_copilot_chatbox(history, is_open, suggestions_children, user
         Output('new-project-error', 'children')
     ],
     [
+        Input('delete-project', 'n_clicks'),
         Input('confirm-new-project', 'n_clicks'),
         Input('new-project-name', 'n_submit')
     ],
     [
-        State('new-project-name', 'value'),
+        State('project-selector', 'value'),
         State('project-selector', 'options'),
-        State('project-selector', 'value')
+        State('new-project-name', 'value')
     ],
     prevent_initial_call=True
 )
-def create_project(confirm_clicks, n_submit, new_name, options, current_value):
+def manage_projects(delete_clicks, confirm_clicks, n_submit, current_project, options, new_name):
     import dash
     from dash.exceptions import PreventUpdate
-    global projects
     ctx = dash.callback_context
-    triggered = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+    if not ctx.triggered:
+        raise PreventUpdate
+    triggered = ctx.triggered[0]['prop_id'].split('.')[0]
+    global projects
 
-    # Only trigger on confirm button or enter
-    if not (triggered == 'confirm-new-project' or triggered == 'new-project-name'):
+    # Delete project branch
+    if triggered == 'delete-project':
+        if current_project:
+            projects.pop(current_project, None)
+            if not projects:
+                projects["Default Project"] = default_project_state()
+            save_projects(projects)
+            opts = [
+                {'label': html.Span([
+                    html.I(className="fa fa-plus", style={"marginRight": "7px", "color": "#0af"}), "+ New Project…"
+                ]), 'value': "__new_project__"},
+                {'label': html.Span([
+                    html.Span("⭐", className="orion-project-star"), "Default Project"
+                ], className="orion-project-default"), 'value': "Default Project"}
+            ] + [{'label': n, 'value': n} for n in projects if n != "Default Project"]
+            new_current = list(projects.keys())[0]
+            return opts, new_current, "", ""
         raise PreventUpdate
 
-    if not new_name or not new_name.strip():
-        return dash.no_update, dash.no_update, "", "Project name cannot be empty."
+    # Create project branch (confirm button or Enter)
+    if triggered in ('confirm-new-project', 'new-project-name'):
+        if not new_name or not new_name.strip():
+            return dash.no_update, dash.no_update, "", "Project name cannot be empty."
 
-    name = new_name.strip()
-    # Prevent duplicate project names
-    if name in projects:
-        return dash.no_update, dash.no_update, "", "Project already exists."
+        name = new_name.strip()
+        if name in projects:
+            return dash.no_update, dash.no_update, "", "Project already exists."
 
-    # Create the new project with default state
-    projects[name] = default_project_state()
-    save_projects(projects)
-    # Rebuild dropdown options
-    opts = [
-        {'label': html.Span([
-            html.I(className="fa fa-plus", style={"marginRight": "7px", "color": "#0af"}), "+ New Project…"
-        ]), 'value': "__new_project__"},
-        {'label': html.Span([
-            html.Span("⭐", className="orion-project-star"), "Default Project"
-        ], className="orion-project-default"), 'value': "Default Project"}
-    ] + [{'label': n, 'value': n} for n in projects if n != "Default Project"]
+        projects[name] = default_project_state()
+        save_projects(projects)
+        opts = [
+            {'label': html.Span([
+                html.I(className="fa fa-plus", style={"marginRight": "7px", "color": "#0af"}), "+ New Project…"
+            ]), 'value': "__new_project__"},
+            {'label': html.Span([
+                html.Span("⭐", className="orion-project-star"), "Default Project"
+            ], className="orion-project-default"), 'value': "Default Project"}
+        ] + [{'label': n, 'value': n} for n in projects if n != "Default Project"]
 
-    return opts, name, "", ""
+        return opts, name, "", ""
+
+    raise PreventUpdate
 
 ##############################################################
 # --- CHIP/LOGIC TO QUERY CALLBACK (for search-term) ---
