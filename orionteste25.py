@@ -2997,13 +2997,9 @@ def project_crud(create_clicks, rename_clicks, delete_clicks, new_name, rename_n
         projects[name] = default_project_state()
         save_projects(projects)
         return ([{'label': n, 'value': n} for n in projects], name)
-    elif triggered == 'rename-project' and rename_name and current_project:
-        new_name = rename_name.strip()
-        if not new_name or new_name in projects:
-            return dash.no_update, dash.no_update
-        projects[new_name] = projects.pop(current_project)
-        save_projects(projects)
-        return ([{'label': n, 'value': n} for n in projects], new_name)
+    elif triggered == 'rename-project':
+        # Renaming is now handled by a dedicated callback
+        raise PreventUpdate
     elif triggered == 'delete-project' and current_project:
         projects.pop(current_project, None)
         if not projects:
@@ -3405,6 +3401,66 @@ def create_project(confirm_clicks, n_submit, new_name, options, current_value):
     ] + [{'label': n, 'value': n} for n in projects if n != "Default Project"]
 
     return opts, name, "", ""
+
+# --- PROJECT RENAME CALLBACK ---
+# Handles rename confirmation via button click or Enter key
+@app.callback(
+    [
+        Output('project-selector', 'options'),
+        Output('project-selector', 'value'),
+        Output('rename-project-name', 'value'),
+        Output('rename-project-error', 'children')
+    ],
+    [
+        Input('confirm-rename-project', 'n_clicks'),
+        Input('rename-project-name', 'n_submit')
+    ],
+    [
+        State('rename-project-name', 'value'),
+        State('project-selector', 'options'),
+        State('project-selector', 'value')
+    ],
+    prevent_initial_call=True
+)
+def rename_project(confirm_clicks, n_submit, new_name, options, current_value):
+    import dash
+    from dash.exceptions import PreventUpdate
+    global projects
+    ctx = dash.callback_context
+    triggered = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+
+    # Only trigger on confirm button or enter
+    if not (triggered == 'confirm-rename-project' or triggered == 'rename-project-name'):
+        raise PreventUpdate
+
+    if not new_name or not new_name.strip():
+        return dash.no_update, dash.no_update, "", "Project name cannot be empty."
+
+    new_name = new_name.strip()
+
+    # Must be renaming an existing project
+    if not current_value or current_value not in projects:
+        raise PreventUpdate
+
+    # Prevent duplicate project names
+    if new_name in projects:
+        return dash.no_update, dash.no_update, "", "Project already exists."
+
+    # Perform rename
+    projects[new_name] = projects.pop(current_value)
+    save_projects(projects)
+
+    # Rebuild dropdown options
+    opts = [
+        {'label': html.Span([
+            html.I(className="fa fa-plus", style={"marginRight": "7px", "color": "#0af"}), "+ New Project…"
+        ]), 'value': "__new_project__"},
+        {'label': html.Span([
+            html.Span("⭐", className="orion-project-star"), "Default Project"
+        ], className="orion-project-default"), 'value': "Default Project"}
+    ] + [{'label': n, 'value': n} for n in projects if n != "Default Project"]
+
+    return opts, new_name, "", ""
 
 ##############################################################
 # --- CHIP/LOGIC TO QUERY CALLBACK (for search-term) ---
