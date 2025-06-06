@@ -3424,6 +3424,21 @@ def create_project(confirm_clicks, n_submit, new_name, options, current_value):
 
     return opts, name, "", ""
 
+
+# Callback to toggle visibility of rename project error
+@app.callback(
+    Output('rename-project-error', 'style'),
+    [Input('confirm-rename-project', 'n_clicks'),
+     Input('rename-project-name', 'n_submit')],
+    State('rename-project-error', 'children'),
+    prevent_initial_call=True
+)
+def show_rename_error_style(n_clicks, n_submit, error_text):
+    """Show or hide the rename project error based on returned text."""
+    if error_text:
+        return {'color': '#ff4d4f', 'fontSize': '14px', 'marginTop': '4px'}
+    return {'display': 'none'}
+
 ##############################################################
 # --- CHIP/LOGIC TO QUERY CALLBACK (for search-term) ---
 # (This should be the only callback that sets 'search-term', 'value')
