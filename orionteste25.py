@@ -2977,11 +2977,10 @@ from dash.exceptions import PreventUpdate
     [Output('project-selector', 'options'),
      Output('project-selector', 'value')],
     Input('delete-project', 'n_clicks'),
-    [State('project-selector', 'value'),
-     State('project-selector', 'options')],
+    [State('project-selector', 'value')],
     prevent_initial_call=True
 )
-def project_crud(delete_clicks, current_project, options):
+def project_crud(delete_clicks, current_project):
     ctx = dash.callback_context
     if not ctx.triggered or not delete_clicks:
         raise PreventUpdate
@@ -3385,12 +3384,11 @@ def render_scanning_copilot_chatbox(history, is_open, suggestions_children, user
     ],
     [
         State('new-project-name', 'value'),
-        State('project-selector', 'options'),
         State('project-selector', 'value')
     ],
     prevent_initial_call=True
 )
-def create_project(confirm_clicks, n_submit, new_name, options, current_value):
+def create_project(confirm_clicks, n_submit, new_name, current_value):
     import dash
     from dash.exceptions import PreventUpdate
     global projects
