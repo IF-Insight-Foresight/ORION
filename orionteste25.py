@@ -8,6 +8,10 @@ import pickle
 import io
 import sys
 import logging
+
+# Initialize logging before first use
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 import re
 import json
 from datetime import datetime
@@ -130,8 +134,6 @@ openai.api_key = api_key
 client = OpenAI(api_key=api_key)
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # --- DASH APP INIT ---
 app = dash.Dash(
