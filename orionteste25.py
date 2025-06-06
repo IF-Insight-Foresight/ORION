@@ -3185,7 +3185,7 @@ def handle_copilot_suggestion_click(n_clicks_list, suggestions):
     [
         Output("scanning-copilot-history", "data"),
         Output("scanning-copilot-thread", "data"),    # New store for thread info
-        Output("scanning-copilot-user-input", "value"),
+        Output("scanning-copilot-user-input", "value", allow_duplicate=True),
     ],
     Input("scanning-copilot-send-btn", "n_clicks"),  # <<< Use this button id
     State("scanning-copilot-user-input", "value"),
