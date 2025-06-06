@@ -1312,6 +1312,21 @@ def scanning_layout():
                                                         tabIndex=0,
                                                         **{"aria-label": "Delete Project"}
                                                     ),
+                                                    html.Button(
+                                                        html.I(className="fa fa-save"),
+                                                        id='save-project',
+                                                        className="orion-icon-btn",
+                                                        style={
+                                                            **APPLE_BUTTON_SECONDARY,
+                                                            "padding": "7px 12px",
+                                                            "fontSize": "18px",
+                                                            "minWidth": "44px",
+                                                            "minHeight": "44px"
+                                                        },
+                                                        title="Save Project",
+                                                        tabIndex=0,
+                                                        **{"aria-label": "Save Project"}
+                                                    ),
                                                 ]
                                             ),
                                             html.Div(
@@ -1396,7 +1411,15 @@ def scanning_layout():
                                                 id='confirm-delete',
                                                 message='Are you sure you want to delete this project?'
                                             ),
-                                            html.Div(id='save-status', style={'display': 'none'})
+                                            html.Div(
+                                                id='save-status',
+                                                style={
+                                                    'color': '#0af',
+                                                    'fontSize': '14px',
+                                                    'marginTop': '6px',
+                                                    'textAlign': 'center'
+                                                }
+                                            )
                                         ]
                                     )
                                 ]
@@ -3086,11 +3109,12 @@ def show_confirm_dialog(n_clicks):
      Input('cluster-highlight', 'value'),
      Input('driving-force-filter', 'value'),
      Input('search-chips', 'data'),
-     Input('logic-dropdown', 'value')],
+     Input('logic-dropdown', 'value'),
+     Input('save-project', 'n_clicks')],
     State('project-selector', 'value'),
     prevent_initial_call=True
 )
-def persist_state(search, cluster, driving_forces, chips, logic, project_name):
+def persist_state(search, cluster, driving_forces, chips, logic, n_save, project_name):
     state = projects.get(project_name, default_project_state())
     state['search'] = search or ""
     state['cluster'] = cluster if cluster is not None else -1
