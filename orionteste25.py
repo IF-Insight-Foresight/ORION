@@ -3003,7 +3003,9 @@ def project_crud(delete_clicks, current_project, options):
 
 @app.callback(
     [Output('new-project-name', 'style'),
-     Output('rename-project-name', 'style')],
+     Output('rename-project-name', 'style'),
+     Output('confirm-new-project', 'style'),
+     Output('confirm-rename-project', 'style')],
     [Input('create-project', 'n_clicks'),
      Input('rename-project', 'n_clicks')],
     prevent_initial_call=True
@@ -3013,11 +3015,37 @@ def show_input_fields(create_clicks, rename_clicks):
     if not ctx.triggered:
         raise PreventUpdate
     trig = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    confirm_style = {
+        "background": "none",
+        "border": "none",
+        "color": "#00d26a",
+        "fontSize": "22px",
+        "marginLeft": "8px",
+        "minWidth": "44px",
+        "minHeight": "44px",
+    }
+
     if trig == 'create-project':
-        return {'display': 'block', 'width': '95%'}, {'display': 'none'}
+        return (
+            {'display': 'block', 'width': '95%'},
+            {'display': 'none'},
+            {**confirm_style, 'display': 'inline-block'},
+            {**confirm_style, 'display': 'none'}
+        )
     elif trig == 'rename-project':
-        return {'display': 'none'}, {'display': 'block', 'width': '95%'}
-    return {'display': 'none'}, {'display': 'none'}
+        return (
+            {'display': 'none'},
+            {'display': 'block', 'width': '95%'},
+            {**confirm_style, 'display': 'none'},
+            {**confirm_style, 'display': 'inline-block'}
+        )
+    return (
+        {'display': 'none'},
+        {'display': 'none'},
+        {**confirm_style, 'display': 'none'},
+        {**confirm_style, 'display': 'none'}
+    )
 
 @app.callback(
     Output('confirm-delete', 'displayed'),
