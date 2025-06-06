@@ -2150,21 +2150,6 @@ def toggle_info_panel(show_btn, close_btn, backdrop_btn, panel_open):
     return open_panel, panel_style, backdrop_style
 
 
-# Callback: Handle clicking on copilot suggestion buttons
-@app.callback(
-    Output('scanning-copilot-user-input', 'value'),
-    Input({'type': 'copilot-suggestion', 'index': ALL}, 'n_clicks'),
-    State({'type': 'copilot-suggestion', 'index': ALL}, 'children'),
-    prevent_initial_call=True
-)
-def fill_input_with_suggestion(n_clicks, suggestions):
-    if not n_clicks or sum(n_clicks) == 0:
-        raise PreventUpdate
-    # Find which button was clicked
-    for idx, clicks in enumerate(n_clicks):
-        if clicks:
-            return suggestions[idx]
-    raise PreventUpdate
 
 @app.callback(
     [
@@ -3194,7 +3179,7 @@ def update_scanning_copilot_suggestions(selected_rows, search_term):
         html.Button(
             text,
             n_clicks=0,
-            id={"type": "copilot-suggestion-btn", "index": i},
+            id={"type": "copilot-suggestion", "index": i},
             style={
                 "backgroundColor": "#181818",
                 "color": "#0af",
@@ -3210,20 +3195,19 @@ def update_scanning_copilot_suggestions(selected_rows, search_term):
     ]
     return [html.Div(info, style={"color": "#aaa", "fontSize": "13px", "marginRight": "10px"})] + buttons
 
-# Fill input box from suggestion click
+# Fill input box from suggestion click (single callback handling all suggestion buttons)
 @app.callback(
     Output("scanning-copilot-user-input", "value"),
-    Input({'type': 'copilot-suggestion', 'index': ALL}, "n_clicks"),
-    State("explorer-selected-rows", "data"),
-    State("search-term", "value"),
-    prevent_initial_call=True
+    Input({"type": "copilot-suggestion", "index": ALL}, "n_clicks"),
+    State({"type": "copilot-suggestion", "index": ALL}, "children"),
+    prevent_initial_call=True,
 )
-def fill_from_copilot_suggestion(n_clicks_list, selected_rows, search_term):
-    prompts = get_scanning_copilot_prompts(selected_rows, search_term)
+def handle_copilot_suggestion_click(n_clicks_list, suggestions):
+    if not n_clicks_list or sum(n_clicks_list) == 0:
+        raise PreventUpdate
     for i, n in enumerate(n_clicks_list):
-        if n:
-            if i < len(prompts):
-                return prompts[i]
+        if n and i < len(suggestions):
+            return suggestions[i]
     raise PreventUpdate
 
 # Chat send callback: handles OpenAI reply, manages history and thread
