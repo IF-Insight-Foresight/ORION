@@ -121,17 +121,11 @@ APPLE_CARD = {
 }
 
 # --- ENV & SECRETS ---
-load_dotenv(Path.home() / "Desktop" / ".env", override=True)
-api_key      = os.getenv("OPENAI_API_KEY")
-assistant_id = os.getenv("ASSISTANT_ID") or os.getenv("OPENAI_ASSISTANT_ID")
-if not api_key:
-    raise ValueError("🚨 Missing OPENAI_API_KEY in .env file.")
-if not assistant_id:
-    raise ValueError("🚨 Missing ASSISTANT_ID in .env file.")
+from orion.openai_client import get_client
+
 import openai
-from openai import OpenAI
-openai.api_key = api_key
-client = OpenAI(api_key=api_key)
+client, assistant_id = get_client()
+openai.api_key = client.api_key
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -2864,6 +2858,7 @@ app.index_string = """
     [
         Output("explorer-table", "selected_rows"),
         Output("network-focus-id", "data"),
+        Output("explorer-selected-rows", "data", allow_duplicate=True),
     ],
     [
         Input("tsne-plot", "clickData"),
@@ -2883,17 +2878,18 @@ def unified_table_selection(
 ):
     ctx = dash.callback_context
     if not ctx.triggered or not table_data:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update
 
     triggered = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Handle Select All
     if triggered == "select-all-button":
-        return list(range(len(table_data))), focus_id
+        rows = list(range(len(table_data)))
+        return rows, focus_id, rows
 
     # Handle Deselect All
     if triggered == "deselect-all-button":
-        return [], None
+        return [], None, []
 
     # --- PATCH START: Multi-select logic for Plot clicks ---
     if triggered == "tsne-plot" and tsne_click:
@@ -2901,7 +2897,7 @@ def unified_table_selection(
         node_id = pt.get("customdata", [None])[0]
         row_indices = [i for i, row in enumerate(table_data) if str(row.get("ID")) == str(node_id)]
         if not row_indices:
-            return dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update, dash.no_update
         row_idx = row_indices[0]
         selected_rows = selected_rows or []
         # Toggle node: add if not selected, remove if already selected
@@ -2910,7 +2906,7 @@ def unified_table_selection(
         else:
             selected_rows = selected_rows + [row_idx]
         # Keep focus on the most recently toggled node
-        return selected_rows, table_data[row_idx].get("ID")
+        return selected_rows, table_data[row_idx].get("ID"), selected_rows
     # --- PATCH END ---
 
     # Handle table row selection (focus follows first selected row, preserves multi)
@@ -2919,10 +2915,10 @@ def unified_table_selection(
             idx = selected_rows[0]
             if idx < len(table_data):
                 node_id = table_data[idx].get("ID")
-                return selected_rows, node_id
-        return [], None
+                return selected_rows, node_id, selected_rows
+        return [], None, []
 
-    return dash.no_update, dash.no_update
+    return dash.no_update, dash.no_update, dash.no_update
 
 from dash.exceptions import PreventUpdate
 
@@ -2989,17 +2985,19 @@ def show_confirm_dialog(n_clicks):
      Input('driving-force-filter', 'value'),
      Input('search-chips', 'data'),
      Input('logic-dropdown', 'value'),
+     Input('explorer-selected-rows', 'data'),
      Input('save-project', 'n_clicks')],
     State('project-selector', 'value'),
     prevent_initial_call=True
 )
-def persist_state(search, cluster, driving_forces, chips, logic, n_save, project_name):
+def persist_state(search, cluster, driving_forces, chips, logic, rows, n_save, project_name):
     state = projects.get(project_name, default_project_state())
     state['search'] = search or ""
     state['cluster'] = cluster if cluster is not None else -1
     state['driving_forces'] = driving_forces if driving_forces else ["(All)"]
     state['chips'] = chips or []
     state['logic'] = logic or "AND"
+    state['explorer_selected_rows'] = rows or []
     projects[project_name] = state
     save_projects(projects)
     return f"Saved: {datetime.now().strftime('%H:%M:%S')}"
