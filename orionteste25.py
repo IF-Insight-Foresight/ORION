@@ -2974,43 +2974,31 @@ from dash.exceptions import PreventUpdate
 @app.callback(
     [Output('project-selector', 'options'),
      Output('project-selector', 'value')],
-    [Input('create-project', 'n_clicks'),
-     Input('rename-project', 'n_clicks'),
-     Input('delete-project', 'n_clicks')],
-    [State('new-project-name', 'value'),
-     State('rename-project-name', 'value'),
-     State('project-selector', 'value'),
+    Input('delete-project', 'n_clicks'),
+    [State('project-selector', 'value'),
      State('project-selector', 'options')],
     prevent_initial_call=True
 )
-def project_crud(create_clicks, rename_clicks, delete_clicks, new_name, rename_name, current_project, options):
+def project_crud(delete_clicks, current_project, options):
     ctx = dash.callback_context
-    triggered = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+    if not ctx.triggered or not delete_clicks:
+        raise PreventUpdate
     global projects
-    if triggered == 'create-project' and new_name:
-        name = new_name.strip() or f"Project {len(projects)+1}"
-        if name in projects:
-            i = 2
-            while f"{name} {i}" in projects:
-                i += 1
-            name = f"{name} {i}"
-        projects[name] = default_project_state()
-        save_projects(projects)
-        return ([{'label': n, 'value': n} for n in projects], name)
-    elif triggered == 'rename-project' and rename_name and current_project:
-        new_name = rename_name.strip()
-        if not new_name or new_name in projects:
-            return dash.no_update, dash.no_update
-        projects[new_name] = projects.pop(current_project)
-        save_projects(projects)
-        return ([{'label': n, 'value': n} for n in projects], new_name)
-    elif triggered == 'delete-project' and current_project:
+    if current_project:
         projects.pop(current_project, None)
         if not projects:
             projects["Default Project"] = default_project_state()
         save_projects(projects)
+        opts = [
+            {'label': html.Span([
+                html.I(className="fa fa-plus", style={"marginRight": "7px", "color": "#0af"}), "+ New Project…"
+            ]), 'value': "__new_project__"},
+            {'label': html.Span([
+                html.Span("⭐", className="orion-project-star"), "Default Project"
+            ], className="orion-project-default"), 'value': "Default Project"}
+        ] + [{'label': n, 'value': n} for n in projects if n != "Default Project"]
         new_current = list(projects.keys())[0]
-        return ([{'label': n, 'value': n} for n in projects], new_current)
+        return opts, new_current
     raise PreventUpdate
 
 @app.callback(
