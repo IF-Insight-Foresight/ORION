@@ -4,7 +4,7 @@ import argparse
 import pickle
 import pandas as pd
 import nltk
-import re
+from orion.data import preprocess_text, build_preprocessed_column
 import numpy as np
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
@@ -41,23 +41,10 @@ data = pd.read_excel(excel_path, engine="openpyxl")
 # 2) Prepare text preprocessing
 nltk.download("stopwords", quiet=True)
 # Build the set of stopwords
-text_stopwords = set(stopwords.words("english"))
-# Convert to list for scikit‑learn
-text_stopwords = list(text_stopwords)
-
-def preprocess_text(text: str) -> str:
-    text = str(text).lower()
-    text = re.sub(r"[^a-z0-9\s]", "", text)
-    tokens = text.split()
-    tokens = [w for w in tokens if w not in text_stopwords and len(w) > 2]
-    return " ".join(tokens)
+text_stopwords = list(set(stopwords.words("english")))
 
 # 3) Build the “PreprocessedText” column exactly as in orion2.py
-data["PreprocessedText"] = (
-    data["Title"].fillna("") + " " +
-    data["Description"].fillna("") + " " +
-    data["Tags"].fillna("")
-).apply(preprocess_text)
+build_preprocessed_column(data, text_stopwords)
 
 # 4) TF‑IDF vectorization on that cleaned text
 vectorizer = TfidfVectorizer(
