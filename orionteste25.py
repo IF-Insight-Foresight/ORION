@@ -38,7 +38,7 @@ from nltk.corpus import stopwords
 
 from dash import ctx
 
-print(">>> [DEBUG] After imports")
+logger.debug("After imports")
 
 
 # --- PROJECTS/DASHBOARD STATE PERSISTENCE LOGIC ---
@@ -3513,11 +3513,11 @@ def unified_chip_logic_filter_callback(
     # Default (shouldn't happen)
     raise PreventUpdate
 if __name__ == "__main__":
-    print(">>> Starting ORION app...")
+    logger.debug("Starting ORION app...")
     with server.app_context():
-        print(">>> [DEBUG] Before db.create_all()")
+        logger.debug("Before db.create_all()")
         db.create_all()
-        print(">>> [DEBUG] After db.create_all()")
+        logger.debug("After db.create_all()")
     port = int(os.environ.get("PORT", 8050))
     app.run(host="0.0.0.0", port=port, debug=False)
 
