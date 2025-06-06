@@ -2127,21 +2127,7 @@ def dash_register_layout():
         ]
     ) 
 
-# --- Callback to toggle the Copilot panel display ---
-@app.callback(
-    Output("scanning-copilot-panel", "style"),
-    Input("show-scanning-copilot-btn", "n_clicks"),
-    State("scanning-copilot-panel", "style"),
-    prevent_initial_call=True
-)
-def toggle_scanning_copilot_panel(n_clicks, current_style):
-    if n_clicks is None:
-        raise dash.exceptions.PreventUpdate
-    # Toggle display between "none" and "block"
-    new_display = "block" if (current_style is None or current_style.get("display") == "none") else "none"
-    style_copy = dict(current_style) if current_style else {}
-    style_copy["display"] = new_display
-    return style_copy
+
 
 ###################################################
 # --- Info Panel Drawer/Backdrop Toggle Callback ---
@@ -3223,6 +3209,17 @@ def show_hide_scanning_copilot(is_open):
         "transition": "all 0.26s cubic-bezier(.4,1.5,.8,1)",
         "flexDirection": "column",
     }
+    return style
+
+# Copilot panel container style synced with open store
+@app.callback(
+    Output("scanning-copilot-panel", "style"),
+    Input("scanning-copilot-open", "data"),
+    State("scanning-copilot-panel", "style"),
+)
+def update_scanning_copilot_panel(is_open, current_style):
+    style = dict(current_style) if current_style else {}
+    style["display"] = "block" if is_open else "none"
     return style
 
 # Suggestions (update dynamically with context)
