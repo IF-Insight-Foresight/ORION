@@ -1,4 +1,6 @@
 # preprocess.py
+import os
+import argparse
 import pickle
 import pandas as pd
 import nltk
@@ -11,11 +13,30 @@ from sklearn.metrics import silhouette_score
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.corpus import stopwords
 
-# 1) Load your raw data from Excel
-data = pd.read_excel(
-    "/Users/soeir2/Desktop/ORION_Scanning_DB_Updated.xlsx",
-    engine="openpyxl"
+# ---------------------
+# Excel input handling
+# ---------------------
+# The path to the Excel file can be provided either via the command
+# line argument ``--excel`` or the environment variable
+# ``ORION_EXCEL_PATH``.  If neither is supplied, the script looks for a
+# file named ``ORION_Scanning_DB_Updated.xlsx`` relative to this
+# repository.
+
+parser = argparse.ArgumentParser(description="Preprocess ORION data")
+parser.add_argument(
+    "--excel",
+    help="Path to the Excel file containing raw data",
 )
+args = parser.parse_args()
+
+excel_path = (
+    args.excel
+    or os.environ.get("ORION_EXCEL_PATH")
+    or "ORION_Scanning_DB_Updated.xlsx"
+)
+
+# 1) Load your raw data from Excel
+data = pd.read_excel(excel_path, engine="openpyxl")
 
 # 2) Prepare text preprocessing
 nltk.download("stopwords", quiet=True)
