@@ -968,38 +968,6 @@ def scanning_layout():
                             "alignItems": "center"
                         }
                     ),
-                    dcc.Textarea(
-                        id='scanning-copilot-user-input',
-                        placeholder='Ask a question...',
-                        style={
-                            "width": "94%",
-                            "height": "55px",
-                            "backgroundColor": "#232323",
-                            "color": "#eee",
-                            "border": "1.5px solid #444",
-                            "borderRadius": "14px",
-                            "padding": "10px",
-                            "fontSize": "16px",
-                            "fontFamily": "'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
-                        }
-                    ),
-                    html.Button(
-                        'Send',
-                        id='scanning-copilot-send-btn',  # <<< Use this ID everywhere
-                        n_clicks=0,
-                        style={
-                            "margin": "8px 0 0 0",
-                            "backgroundColor": "#007aff",
-                            "color": "#fff",
-                            "border": "none",
-                            "borderRadius": "14px",
-                            "fontWeight": "600",
-                            "fontSize": "15px",
-                            "padding": "8px 32px",
-                            "display": "block"
-                        }
-                    ),
-                    dcc.Store(id="scanning-copilot-history", data=[])
                 ]
             ),
             html.Button(
@@ -3258,11 +3226,10 @@ def handle_scanning_copilot_send(n_clicks, user_input, history, thread_data, sel
 @app.callback(
     Output("scanning-copilot-chatbox", "children"),
     [Input("scanning-copilot-history", "data"),
-     Input("scanning-copilot-open", "data"),
-     Input("scanning-copilot-suggestions", "children")],
+     Input("scanning-copilot-open", "data")],
     State("scanning-copilot-user-input", "value"),
 )
-def render_scanning_copilot_chatbox(history, is_open, suggestions_children, user_input_value):
+def render_scanning_copilot_chatbox(history, is_open, user_input_value):
     if not is_open:
         return []
     if not history:
@@ -3280,17 +3247,6 @@ def render_scanning_copilot_chatbox(history, is_open, suggestions_children, user
                 "overflowY": "auto",
                 "color": "#fff",
                 "fontSize": "15px"
-            }
-        ),
-        html.Div(
-            id="scanning-copilot-suggestions",
-            children=suggestions_children,
-            style={
-                "margin": "7px 0 8px 0",
-                "display": "flex",
-                "flexWrap": "wrap",
-                "gap": "4px",
-                "alignItems": "center"
             }
         ),
         html.Div(
