@@ -2209,13 +2209,13 @@ def update_tsne_plot(
         cluster_highlight = -1
         driving_force_filter = ["(All)"]
 
-    # --- Apply search query only if search_query is not empty ---
-    if search_query and str(search_query).strip():
+    # Always show full network if search_query is None or blank
+    if not search_query or not str(search_query).strip():
+        filtered_data = data.copy()
+    else:
         query = search_query.strip()
         mask = data["PreprocessedText"].apply(lambda txt: match_advanced_query(txt, query))
-        filtered_data = filtered_data[mask]
-    else:
-        filtered_data = data.copy()
+        filtered_data = data[mask]
 
 
     # --- CLUSTER FILTER ---
