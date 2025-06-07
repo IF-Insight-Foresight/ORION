@@ -3476,7 +3476,7 @@ def handle_node_selection(selected, current_project):
 
 
 @app.callback(
-    Output("tsne-plot", "selectedData"),
+    Output("tsne-plot", "selectedData", allow_duplicate=True),
     Input("project-selector", "value"),
 )
 def restore_selection(project_name):
@@ -3494,8 +3494,8 @@ def restore_selection(project_name):
 
 # --- Search & Selection Callback ---
 @app.callback(
-    [Output("tsne-plot", "selectedData"),
-     Output("explorer-selected-rows", "data")],
+    [Output("tsne-plot", "selectedData", allow_duplicate=True),
+     Output("explorer-selected-rows", "data", allow_duplicate=True)],
     [Input("search-term", "n_submit"),
      Input("apply-filters-button", "n_clicks")],
     [State("search-term", "value"),
