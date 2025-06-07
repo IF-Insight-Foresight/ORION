@@ -3179,7 +3179,7 @@ def update_scanning_copilot_suggestions(selected_rows, search_term):
 
 # Fill input box from suggestion click (single callback handling all suggestion buttons)
 @app.callback(
-    Output("scanning-copilot-input", "value"),
+    Output("scanning-copilot-input", "value", allow_duplicate=True),
     Input({"type": "copilot-suggestion", "index": ALL}, "n_clicks"),
     State({"type": "copilot-suggestion", "index": ALL}, "children"),
     prevent_initial_call=True,
@@ -3381,7 +3381,7 @@ def build_query(chips, logic, n_clicks, n_submit, current_value):
         Output('logic-dropdown', 'value'),
         Output('cluster-highlight', 'value'),
         Output('driving-force-filter', 'value'),
-        Output('explorer-selected-rows', 'data'),
+        Output('explorer-selected-rows', 'data', allow_duplicate=True),
     ],
     [
         Input('reset-filters-button', 'n_clicks'),
@@ -3458,7 +3458,7 @@ def unified_chip_logic_filter_callback(
 
 # --- Node selection persistence callbacks ---
 @app.callback(
-    Output("explorer-selected-rows", "data"),
+    Output("explorer-selected-rows", "data", allow_duplicate=True),
     Input("tsne-plot", "selectedData"),
     State("project-selector", "value"),
     prevent_initial_call=True
