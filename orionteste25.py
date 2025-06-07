@@ -2167,7 +2167,7 @@ def toggle_info_panel(show_btn, close_btn, backdrop_btn, panel_open):
         Output("explorer-table", "tooltip_data"),
     ],
     [
-        Input("search-term", "n_submit"),                   # Only triggers on Enter!
+        Input("search-term", "n_submit"),
         Input("apply-filters-button", "n_clicks"),
         Input("reset-filters-button", "n_clicks"),
         Input("cluster-highlight", "value"),
@@ -2198,23 +2198,25 @@ def update_tsne_plot(
     spotlight_keyword,
     search_query,
 ):
-    import dash
     ctx = dash.callback_context
     filtered_data = data.copy()
     triggered = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
 
-    # Reset: If reset button pressed, clear all
+    # --- Reset logic ---
     if triggered == "reset-filters-button":
         filtered_data = data.copy()
         search_query = ""
         cluster_highlight = -1
         driving_force_filter = ["(All)"]
 
-    # --- Apply search query if exists ---
-    if search_query and search_query.strip():
+    # --- Apply search query only if search_query is not empty ---
+    if search_query and str(search_query).strip():
         query = search_query.strip()
         mask = data["PreprocessedText"].apply(lambda txt: match_advanced_query(txt, query))
         filtered_data = filtered_data[mask]
+    else:
+        filtered_data = data.copy()
+
 
     # --- CLUSTER FILTER ---
     if cluster_highlight is not None and cluster_highlight != -1:
