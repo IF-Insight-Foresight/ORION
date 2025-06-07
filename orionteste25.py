@@ -3468,6 +3468,8 @@ def handle_node_selection(selected, current_project):
         selected_ids = []
     else:
         selected_ids = [pt.get("customdata", [None])[0] for pt in selected.get("points", [])]
+    if current_project not in projects:
+        projects[current_project] = default_project_state()
     projects[current_project]["selected_nodes"] = selected_ids
     save_projects(projects)
     return selected_ids
