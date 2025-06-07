@@ -2199,8 +2199,8 @@ def update_tsne_plot(
     search_query,
 ):
     ctx = dash.callback_context
-    filtered_data = data.copy()
     triggered = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+    filtered_data = data.copy()
 
     # --- Reset logic ---
     if triggered == "reset-filters-button":
@@ -2209,32 +2209,29 @@ def update_tsne_plot(
         cluster_highlight = -1
         driving_force_filter = ["(All)"]
 
-    # Always show full network if search_query is None or blank
-    if not search_query or not str(search_query).strip():
-        filtered_data = data.copy()
-    else:
+    # --- Apply search query only if search_query is not empty ---
+    if search_query and str(search_query).strip():
         query = search_query.strip()
         mask = data["PreprocessedText"].apply(lambda txt: match_advanced_query(txt, query))
-        filtered_data = data[mask]
+        filtered_data = filtered_data[mask]
+    else:
+        filtered_data = data.copy()   # This ensures full network is shown on load
 
-
-    # --- CLUSTER FILTER ---
+    # --- (rest of your filtering logic) ---
+    # [CLUSTER FILTER]
     if cluster_highlight is not None and cluster_highlight != -1:
         filtered_data = filtered_data[filtered_data["Cluster"] == cluster_highlight]
-
-    # --- DRIVING FORCE FILTER ---
+    # [DRIVING FORCE FILTER]
     if driving_force_filter and isinstance(driving_force_filter, list):
         if "(All)" not in driving_force_filter:
             filtered_data = filtered_data[filtered_data["Driving Force"].isin(driving_force_filter)]
     elif driving_force_filter and driving_force_filter != "(All)":
         filtered_data = filtered_data[filtered_data["Driving Force"] == driving_force_filter]
 
-    # --- SHOW SIGNALS TOGGLE ---
     if not show_signals_toggle or "show" not in show_signals_toggle:
         filtered_data = filtered_data[filtered_data["Driving Force"].str.lower() != "signals"]
 
     filtered_data = filtered_data.reset_index(drop=True)
-
     show_titles = "titles" in (show_titles_value or [])
 
     fig = generate_tsne_plot(
@@ -2275,7 +2272,6 @@ def update_tsne_plot(
         for _, row in filtered_data.iterrows()
     ]
 
-    # PATCH: Store initial camera for 3D, update output structure
     if network_dimension == "3d":
         initial_camera = dict(
             eye=dict(x=1.7, y=1.7, z=1.7),
@@ -2285,7 +2281,6 @@ def update_tsne_plot(
         return fig, initial_camera, explorer_data, explorer_tooltips
     else:
         return fig, dash.no_update, explorer_data, explorer_tooltips
-
 
 @app.callback(
     Output("tsne-plot", "relayoutData"),
