@@ -2900,6 +2900,7 @@ app.index_string = """
 #############################################
 # SINGLE MERGED TABLE SELECTION CALLBACK (no duplicates)
 #############################################
+# Only one callback sets Output("explorer-table", "selected_rows") and Output("explorer-selected-rows", "data", allow_duplicate=True)
 @app.callback(
     [
         Output("explorer-table", "selected_rows"),
@@ -2916,7 +2917,7 @@ app.index_string = """
         State("explorer-table", "data"),
         State("network-focus-id", "data"),
     ],
-    prevent_initial_call=True
+    prevent_initial_call="initial_duplicate"
 )
 def unified_table_selection(
     tsne_click, selected_rows, select_all_clicks, deselect_all_clicks,
@@ -3381,7 +3382,6 @@ def build_query(chips, logic, n_clicks, n_submit, current_value):
         Output('logic-dropdown', 'value'),
         Output('cluster-highlight', 'value'),
         Output('driving-force-filter', 'value'),
-        Output('explorer-selected-rows', 'data', allow_duplicate=True),
     ],
     [
         Input('reset-filters-button', 'n_clicks'),
@@ -3398,14 +3398,13 @@ def build_query(chips, logic, n_clicks, n_submit, current_value):
         State('logic-dropdown', 'value'),
         State('cluster-highlight', 'value'),
         State('driving-force-filter', 'value'),
-        State('explorer-selected-rows', 'data'),
         State('project-selector', 'value'),
     ],
     prevent_initial_call=True
 )
 def unified_chip_logic_filter_callback(
     reset_clicks, project_value, add_chip, n_submit, clear_all, remove_chip_clicks, logic_change,
-    chip_input, chips, current_logic, cluster, driving_force, explorer_rows, selected_project
+    chip_input, chips, current_logic, cluster, driving_force, selected_project
 ):
     from dash import ctx
     triggered = ctx.triggered_id
@@ -3418,7 +3417,7 @@ def unified_chip_logic_filter_callback(
 
     # 1. Reset button
     if triggered == 'reset-filters-button':
-        return [], "", default_logic, default_cluster, default_driving_force, default_rows
+        return [], "", default_logic, default_cluster, default_driving_force
 
     # 2. Project selector (load project state)
     if triggered == 'project-selector' and selected_project:
@@ -3429,112 +3428,34 @@ def unified_chip_logic_filter_callback(
         cluster = state.get("cluster", default_cluster)
         driving_forces = state.get("driving_forces", default_driving_force)
         explorer_rows = state.get("explorer_selected_rows", default_rows)
-        return chips, "", logic, cluster, driving_forces, explorer_rows
+        return chips, "", logic, cluster, driving_forces
 
     # 3. Remove chip
     if isinstance(triggered, dict) and triggered.get("type") == "remove-chip":
         idx = triggered.get("index")
         if 0 <= idx < len(chips):
             chips = chips[:idx] + chips[idx+1:]
-        return chips, "", current_logic, cluster, driving_force, explorer_rows
+        return chips, "", current_logic, cluster, driving_force,
 
     # 4. Clear all chips
     if triggered == "clear-all-chips":
-        return [], "", current_logic, cluster, driving_force, explorer_rows
+        return [], "", current_logic, cluster, driving_force
 
     # 5. Add chip (button or enter)
     if triggered in ("add-chip-btn", "search-chip-input"):
         val = (chip_input or "").strip()
         if val and val not in chips:
             chips = chips + [val]
-        return chips, "", current_logic, cluster, driving_force, explorer_rows
+        return chips, "", current_logic, cluster, driving_force
 
     # 6. Logic change
     if triggered == "logic-dropdown":
-        return chips, "", logic_change, cluster, driving_force, explorer_rows
+        return chips, "", logic_change, cluster, driving_force
 
     # Default (shouldn't happen)
     raise PreventUpdate
 
-# --- Node selection persistence callbacks ---
-@app.callback(
-    Output("explorer-selected-rows", "data", allow_duplicate=True),
-    Input("tsne-plot", "selectedData"),
-    State("project-selector", "value"),
-    prevent_initial_call=True
-)
-def handle_node_selection(selected, current_project):
-    if not selected:
-        selected_ids = []
-    else:
-        selected_ids = [pt.get("customdata", [None])[0] for pt in selected.get("points", [])]
-    if current_project not in projects:
-        projects[current_project] = default_project_state()
-    projects[current_project]["selected_nodes"] = selected_ids
-    save_projects(projects)
-    return selected_ids
 
-
-@app.callback(
-    Output("tsne-plot", "selectedData", allow_duplicate=True),
-    Input("project-selector", "value"),
-)
-def restore_selection(project_name):
-    selected = projects.get(project_name, {}).get("selected_nodes", [])
-    if not selected:
-        return None
-    points = []
-    for idx, row in data.iterrows():
-        if str(row["ID"]) in selected:
-            points.append({
-                "pointIndex": idx,
-                "customdata": [row["ID"], row["Title"], row["Driving Force"], row["Cluster"], row["Source"]]
-            })
-    return {"points": points}
-
-# --- Search & Selection Callback ---
-@app.callback(
-    [Output("tsne-plot", "selectedData", allow_duplicate=True),
-     Output("explorer-selected-rows", "data", allow_duplicate=True)],
-    [Input("search-term", "n_submit"),
-     Input("apply-filters-button", "n_clicks")],
-    [State("search-term", "value"),
-     State("project-selector", "value")],
-    prevent_initial_call=True
-)
-def search_and_select_nodes(n_submit, n_clicks, search_value, current_project):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        raise PreventUpdate
-    if not search_value or not search_value.strip():
-        return None, []
-
-    matches = data[data.apply(
-        lambda row: match_advanced_query(
-            " ".join([str(row["Title"]), str(row["Description"]), str(row["Tags"])]),
-            search_value
-        ), axis=1
-    )]
-
-    if matches.empty:
-        return None, []
-
-    selected_ids = matches["ID"].astype(str).tolist()
-    points = [
-        {"pointIndex": idx,
-         "customdata": [row["ID"], row["Title"], row["Driving Force"],
-                        row["Cluster"], row["Source"]]}
-        for idx, row in data.iterrows()
-        if str(row["ID"]) in selected_ids
-    ]
-    selected_data = {"points": points} if points else None
-
-    if current_project not in projects:
-        projects[current_project] = default_project_state()
-    projects[current_project]["selected_nodes"] = selected_ids
-    save_projects(projects)
-
-    return selected_data, selected_ids
 if __name__ == "__main__":
     # logger.debug("Starting ORION app...")
     with server.app_context():
