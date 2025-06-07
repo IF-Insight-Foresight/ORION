@@ -2167,6 +2167,7 @@ def toggle_info_panel(show_btn, close_btn, backdrop_btn, panel_open):
         Output("explorer-table", "tooltip_data"),
     ],
     [
+        Input("url", "pathname"),
         Input("search-term", "n_submit"),
         Input("apply-filters-button", "n_clicks"),
         Input("reset-filters-button", "n_clicks"),
@@ -2185,6 +2186,7 @@ def toggle_info_panel(show_btn, close_btn, backdrop_btn, panel_open):
     prevent_initial_call=False
 )
 def update_tsne_plot(
+    pathname,
     search_submit,
     apply_filters_clicks,
     reset_filters_clicks,
@@ -2198,6 +2200,9 @@ def update_tsne_plot(
     spotlight_keyword,
     search_query,
 ):
+    if pathname != "/scanning":
+        raise PreventUpdate
+
     ctx = dash.callback_context
     triggered = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
     filtered_data = data.copy()
