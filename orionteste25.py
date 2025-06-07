@@ -3489,6 +3489,50 @@ def restore_selection(project_name):
                 "customdata": [row["ID"], row["Title"], row["Driving Force"], row["Cluster"], row["Source"]]
             })
     return {"points": points}
+
+# --- Search & Selection Callback ---
+@app.callback(
+    [Output("tsne-plot", "selectedData"),
+     Output("explorer-selected-rows", "data")],
+    [Input("search-term", "n_submit"),
+     Input("apply-filters-button", "n_clicks")],
+    [State("search-term", "value"),
+     State("project-selector", "value")],
+    prevent_initial_call=True
+)
+def search_and_select_nodes(n_submit, n_clicks, search_value, current_project):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    if not search_value or not search_value.strip():
+        return None, []
+
+    matches = data[data.apply(
+        lambda row: match_advanced_query(
+            " ".join([str(row["Title"]), str(row["Description"]), str(row["Tags"])]),
+            search_value
+        ), axis=1
+    )]
+
+    if matches.empty:
+        return None, []
+
+    selected_ids = matches["ID"].astype(str).tolist()
+    points = [
+        {"pointIndex": idx,
+         "customdata": [row["ID"], row["Title"], row["Driving Force"],
+                        row["Cluster"], row["Source"]]}
+        for idx, row in data.iterrows()
+        if str(row["ID"]) in selected_ids
+    ]
+    selected_data = {"points": points} if points else None
+
+    if current_project not in projects:
+        projects[current_project] = default_project_state()
+    projects[current_project]["selected_nodes"] = selected_ids
+    save_projects(projects)
+
+    return selected_data, selected_ids
 if __name__ == "__main__":
     # logger.debug("Starting ORION app...")
     with server.app_context():
