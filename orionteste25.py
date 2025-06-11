@@ -520,7 +520,7 @@ def generate_tsne_plot(filtered_data, show_edges=False, edge_threshold=2.0, focu
                 minv, maxv = coords[:, i].min(), coords[:, i].max()
                 if maxv > minv:
                     coords[:, i] = (coords[:, i] - minv) / (maxv - minv)
-            coords = coords * 0.9 + 0.05  # Fills 90% of cube with 5% margin
+            coords = coords * 0.99 + 0.005  # Fills 90% of cube with 5% margin
 
             curated_x, curated_y, curated_z = coords[curated_mask.values, 0], coords[curated_mask.values, 1], coords[curated_mask.values, 2]
             signals_x, signals_y, signals_z = coords[signals_mask.values, 0], coords[signals_mask.values, 1], coords[signals_mask.values, 2]
@@ -604,12 +604,22 @@ def generate_tsne_plot(filtered_data, show_edges=False, edge_threshold=2.0, focu
         fig.update_layout(
             margin=dict(l=0, r=0, t=0, b=0),
             scene=dict(
-                aspectmode="data",
-                xaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False, backgroundcolor="#000000"),
-                yaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False, backgroundcolor="#000000"),
-                zaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False, backgroundcolor="#000000"),
-                bgcolor="#181818",
+                bgcolor="#000000",          # ← black 3‑D background
+                xaxis=dict(
+                    visible=False, showgrid=False, zeroline=False,
+                    showticklabels=False
+                ),
+                yaxis=dict(
+                    visible=False, showgrid=False, zeroline=False,
+                    showticklabels=False
+                ),
+                zaxis=dict(
+                    visible=False, showgrid=False, zeroline=False,
+                    showticklabels=False
+                ),
+                aspectmode="data"           # maintain true proportions
             ),
+            scene_camera=dict(eye=dict(x=0.4, y=0.4, z=0.4)),
             paper_bgcolor="#000000",
             plot_bgcolor="#000000",
             font=dict(color="white", family=APPLE_FONT),
@@ -737,7 +747,7 @@ def generate_infranodus_style_graph(G):
             size=node_size,
             color=node_color,
             colorscale='Rainbow',
-            showscale=True
+            showscale=False
         )
     )
     fig = go.Figure(
@@ -946,8 +956,6 @@ def scanning_layout():
                             "minHeight": 0,                  # ← ensures scroll area doesn’t push siblings
                             "overflowY": "auto",             # ← scrolls when long
                             "padding": "0 18px",
-                            "backgroundColor": "#161b22",
-                            "borderRadius": "14px",
                             "display": "flex",
                             "flexDirection": "column",
                             "gap": "8px"
@@ -1512,7 +1520,7 @@ def scanning_layout():
                                                                     {"label": "2D", "value": "2d"},
                                                                     {"label": "3D", "value": "3d"}
                                                                 ],
-                                                                value="2d",
+                                                                value="3d",
                                                                 inline=True,
                                                                 style={
                                                                     "color": "#fff",
@@ -3172,9 +3180,11 @@ def toggle_scanning_copilot(n_clicks, is_open):
 
 # Copilot panel box style (always block if open)
 @app.callback(
-    Output("scanning-copilot-chatbox", "style"),
+    Output("scanning-copilot-panel", "style", allow_duplicate=True),
     Input("scanning-copilot-open", "data"),
+    prevent_initial_call=True,
 )
+
 def show_hide_scanning_copilot(is_open):
     style = {
         "display": "block" if is_open else "none",
@@ -3189,7 +3199,6 @@ def show_hide_scanning_copilot(is_open):
         "padding": "0",
         "zIndex": 1101,
         "transition": "all 0.26s cubic-bezier(.4,1.5,.8,1)",
-        # NEW ↓
         "display": "flex",
         "flexDirection": "column",
         "overflowY": "auto",
@@ -3390,7 +3399,7 @@ def update_chatbox(history):
             "display": "flex",
             "flexDirection": "column",
             "gap": "6px",
-            "padding": "8px 0"         # some breathing room
+            "padding": "8px 14px"         
         },
     )
     
