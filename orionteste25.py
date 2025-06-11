@@ -40,9 +40,6 @@ from plotly.colors import hex_to_rgb, qualitative
 import nltk
 from nltk.corpus import stopwords
 
-from dash import ctx
-
-# logger.debug("After imports")
 
 
 # --- PROJECTS/DASHBOARD STATE PERSISTENCE LOGIC ---
@@ -58,6 +55,15 @@ def default_project_state():
         "driving_forces": ["(All)"],
         "explorer_selected_rows": [],
         "selected_nodes": []
+    }
+def _gather_current_state(search, chips, cluster,
+                          driving_forces, explorer_rows):
+    return {
+        "search":                search or "",
+        "chips":                 chips or [],
+        "cluster":               cluster,
+        "driving_forces":        driving_forces,
+        "explorer_selected_rows": explorer_rows or [],
     }
 def load_projects():
     try:
@@ -124,6 +130,10 @@ APPLE_CARD = {
 load_dotenv(Path.home() / "Desktop" / ".env", override=True)
 api_key      = os.getenv("OPENAI_API_KEY")
 assistant_id = os.getenv("ASSISTANT_ID") or os.getenv("OPENAI_ASSISTANT_ID")
+
+# Scanning-page chatbot can use a different assistant; falls back if unset
+scanning_assistant_id = os.getenv("SCANNING_ASSISTANT_ID") or assistant_id
+
 if not api_key:
     raise ValueError("🚨 Missing OPENAI_API_KEY in .env file.")
 if not assistant_id:
@@ -319,7 +329,7 @@ data = data.head(32000)
 # (Patch: Use relevant, short prompts for Copilot suggestions)
 search_suggestions = [
     "Summarize the main drivers behind these results",
-    "Which trends are emerging?"
+    "Suggest 3 opportunity spaces reflected by the current selection"
 ]
 features_path = os.getenv("ORION_PRECOMPUTED_PATH", "precomputed_features.pkl")
 if not os.path.exists(features_path):
@@ -912,6 +922,7 @@ def scanning_layout():
                 id="scanning-copilot-panel",
                 style={
                     "display": "none",
+                    "flexDirection": "column",
                     "position": "fixed",
                     "right": "110px",
                     "bottom": "30px",
@@ -931,12 +942,15 @@ def scanning_layout():
                     html.Div(
                         id="scanning-copilot-chatbox",
                         style={
-                            "overflowY": "auto",
-                            "maxHeight": "270px",
-                            "padding": "0px 18px",
+                            "flex": "1 1 0%",                # ← grows inside the panel, fixed for scroll
+                            "minHeight": 0,                  # ← ensures scroll area doesn’t push siblings
+                            "overflowY": "auto",             # ← scrolls when long
+                            "padding": "0 18px",
                             "backgroundColor": "#161b22",
                             "borderRadius": "14px",
-                            "margin": "0px 14px 9px 14px"
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "gap": "8px"
                         }
                     ),
                     html.Div(
@@ -3021,6 +3035,43 @@ def show_input_fields(create_clicks, rename_clicks):
         {**confirm_style, 'display': 'none'}
     )
 
+# === SAVE the current filters / search into the selected project =============
+@app.callback(
+    Output("save-status", "children", allow_duplicate=True),
+    Input("save-project", "n_clicks"),
+    State("project-selector", "value"),
+    State("search-term", "value"),
+    State("search-chips", "data"),
+    State("cluster-highlight", "value"),
+    State("driving-force-filter", "value"),
+    State("explorer-selected-rows", "data"),
+    prevent_initial_call=True,
+)
+def _save_project_cb(_, project_name, search, chips,
+                     cluster, driving, explorer_rows):
+    state = _gather_current_state(search, chips, cluster,
+                                  driving, explorer_rows)
+    projects[project_name] = {**default_project_state(), **state}
+    save_projects(projects)
+    return "Saved ✓"
+
+# === LOAD project state whenever the selector changes ========================
+@app.callback(
+    Output("search-term", "value", allow_duplicate=True),
+    Output("search-chips", "data", allow_duplicate=True),
+    Output("cluster-highlight", "value", allow_duplicate=True),
+    Output("driving-force-filter", "value", allow_duplicate=True),
+    Output("explorer-selected-rows", "data", allow_duplicate=True),
+    Input("project-selector", "value"),
+    prevent_initial_call=True,
+)
+def _load_project_cb(project_name):
+    st = projects.get(project_name)
+    if not st:
+        raise PreventUpdate
+    return (st["search"], st["chips"], st["cluster"],
+            st["driving_forces"], st["explorer_selected_rows"])
+
 @app.callback(
     Output('confirm-delete', 'displayed'),
     Input('delete-project', 'n_clicks'),
@@ -3137,9 +3188,11 @@ def show_hide_scanning_copilot(is_open):
         "boxShadow": "0 2px 24px #2229",
         "padding": "0",
         "zIndex": 1101,
-        "overflow": "hidden",
         "transition": "all 0.26s cubic-bezier(.4,1.5,.8,1)",
+        # NEW ↓
+        "display": "flex",
         "flexDirection": "column",
+        "overflowY": "auto",
     }
     return style
 
@@ -3204,35 +3257,74 @@ def handle_copilot_suggestion_click(n_clicks_list, suggestions):
     Output("scanning-copilot-history", "data"),
     Output("scanning-copilot-input", "value"),
     Input("scanning-copilot-send-btn", "n_clicks"),
-    Input({'type': 'copilot-suggestion', 'index': ALL}, "n_clicks"),
+    Input({"type": "copilot-suggestion", "index": ALL}, "n_clicks"),
     State("scanning-copilot-input", "value"),
+    State({"type": "copilot-suggestion", "index": ALL}, "children"),
+    State("tsne-plot", "selectedData"),
+    State("explorer-table", "data"),          # NEW
+    State("explorer-selected-rows", "data"),  # NEW
+    State("scanning-copilot-thread", "data"),
     State("scanning-copilot-history", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
-def submit_copilot_prompt(send_click, suggestion_clicks, prompt, history):
-    from dash import ctx
-    triggered = ctx.triggered_id
-    history = history or []
-    question = None
-    if isinstance(triggered, dict) and triggered.get('type') == 'copilot-suggestion':
-        idx = triggered.get('index')
-        question = search_suggestions[idx]
-    elif send_click or (prompt and str(prompt).strip()):
-        question = prompt
-    if not question or not str(question).strip():
+def _copilot_send(_, __, typed, sugg_texts,
+                  selected, table_data, selected_rows,
+                  thread_store, history):
+    ctx = dash.callback_context
+    trig = ctx.triggered_id
+    if trig is None:
         raise PreventUpdate
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": question}],
-            max_tokens=400,
-            temperature=0.7
-        )
-        answer = response.choices[0].message.content
-    except Exception as e:
-        answer = f"Error: {str(e)}"
-    history.append({"question": question, "answer": answer})
-    return history, ""
+
+    # prompt text comes either from a clicked suggestion chip or the input box
+    if isinstance(trig, dict):
+        user_prompt = sugg_texts[trig["index"]]
+    else:
+        user_prompt = (typed or "").strip()
+    if not user_prompt:
+        raise PreventUpdate
+
+    # build context from up to 50 selected nodes or table rows
+    context = ""
+    titles = []
+
+    # 1) titles from nodes clicked in the graph
+    if selected and selected.get("points"):
+        titles = [p["customdata"][1] for p in selected["points"][:50]]
+
+    # 2) if nothing there, pull titles from table-row selections
+    if not titles and table_data and selected_rows:
+        for idx in selected_rows[:50]:
+            if 0 <= idx < len(table_data):
+                titles.append(table_data[idx].get("Title", ""))
+
+    if titles:
+        context = "\n\nContext – selected nodes:\n" + "\n".join(f"- {t}" for t in titles)
+
+    # lazily create / reuse an OpenAI thread
+    if not thread_store:
+        thread = client.beta.threads.create()
+        thread_store = {"id": thread.id}
+    thread_id = thread_store["id"]
+
+    # send the user prompt (plus selected-nodes context) to the thread
+    client.beta.threads.messages.create(
+        thread_id, role="user", content=user_prompt + context
+    )
+    # run the assistant and wait
+    client.beta.threads.runs.create_and_poll(
+        thread_id=thread_id,
+        assistant_id=scanning_assistant_id
+    )
+    # grab the latest assistant reply
+    assistant_msg = client.beta.threads.messages.list(
+        thread_id, limit=1
+    ).data[0].content[0].text.value
+
+    # store Q-A pair in history (keys match update_chatbox)
+    history = (history or []) + [
+        {"question": user_prompt, "answer": assistant_msg}
+    ]
+    return history, ""          # 2nd output clears the input box
 
 # Update chatbox contents from history
 @app.callback(
@@ -3245,25 +3337,62 @@ def update_chatbox(history):
             "No messages yet. Try a suggestion or ask a question!",
             style={"color": "#888", "padding": "12px"}
         )
-    out = []
+
+    bubbles = []
     for entry in history:
         q = entry.get("question", "")
         a = entry.get("answer", "")
-        out.append(
-            html.Div([
-                html.Div(
-                    q,
-                    style={"background": "#222", "color": "#fff", "borderRadius": "14px",
-                           "padding": "10px", "margin": "6px 0 2px 0"}
-                ),
-                html.Div(
-                    a,
-                    style={"background": "#444", "color": "#0af", "borderRadius": "14px",
-                           "padding": "10px", "margin": "2px 0 6px 0"}
-                )
-            ])
+
+        # assistant bubble (dark, left-aligned)
+        bubbles.append(
+            html.Div(
+                a,
+                style={
+                    "alignSelf": "flex-start",
+                    "maxWidth": "92%",
+                    "background": "#2c2c2c",
+                    "color": "#eee",
+                    "borderRadius": "16px 16px 16px 4px",
+                    "padding": "10px 14px",
+                    "margin": "2px 0 6px 0",
+                    "fontSize": "15px",
+                    "whiteSpace": "pre-wrap",   # NEW: keep line-breaks & wrap
+                    "wordBreak": "break-word",  # NEW: wrap very long words/URLs
+                },
+            )
         )
-    return out
+        # user bubble (blue, right-aligned) – add the same two lines
+        bubbles.append(
+            html.Div(
+                q,
+                style={
+                    "alignSelf": "flex-end",
+                    "maxWidth": "92%",
+                    "background": "#007aff",
+                    "color": "#fff",
+                    "borderRadius": "16px 16px 4px 16px",
+                    "padding": "10px 14px",
+                    "margin": "6px 0 2px 0",
+                    "fontSize": "15px",
+                    "whiteSpace": "pre-wrap",   # NEW
+                    "wordBreak": "break-word",  # NEW
+                },
+            )
+        )
+
+        # wrap bubbles in a flex column that can shrink / scroll
+    return html.Div(
+        bubbles,
+        style={
+            "flex": "1 1 0%",          # takes all remaining height
+            "minHeight": 0,            # lets flexbox shrink it
+            "overflowY": "auto",       # scrolls when content is long
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "6px",
+            "padding": "8px 0"         # some breathing room
+        },
+    )
     
     # --- PROJECT MANAGEMENT CALLBACK: Only single, unified callback for all project management UI logic remains. ---
 # (All other @app.callback functions with outputs to project management UI components have been removed.)
@@ -3412,7 +3541,6 @@ def unified_chip_logic_filter_callback(
     reset_clicks, project_value, add_chip, n_submit, clear_all, remove_chip_clicks, logic_change,
     chip_input, chips, current_logic, cluster, driving_force, selected_project
 ):
-    from dash import ctx
     triggered = ctx.triggered_id
     chips = chips or []
     # Defaults
