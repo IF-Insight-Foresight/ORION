@@ -2167,7 +2167,6 @@ def toggle_info_panel(show_btn, close_btn, backdrop_btn, panel_open):
         Output("explorer-table", "tooltip_data"),
     ],
     [
-        Input("url", "pathname"),
         Input("search-term", "n_submit"),
         Input("apply-filters-button", "n_clicks"),
         Input("reset-filters-button", "n_clicks"),
@@ -2186,7 +2185,6 @@ def toggle_info_panel(show_btn, close_btn, backdrop_btn, panel_open):
     prevent_initial_call=False
 )
 def update_tsne_plot(
-    pathname,
     search_submit,
     apply_filters_clicks,
     reset_filters_clicks,
@@ -2200,9 +2198,6 @@ def update_tsne_plot(
     spotlight_keyword,
     search_query,
 ):
-    if pathname != "/scanning":
-        raise PreventUpdate
-
     ctx = dash.callback_context
     triggered = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
     filtered_data = data.copy()
@@ -2214,28 +2209,35 @@ def update_tsne_plot(
         cluster_highlight = -1
         driving_force_filter = ["(All)"]
 
-    # --- Apply search query only if search_query is not empty ---
-    if search_query and str(search_query).strip():
+    # Only apply filter if search_query is not None and not empty after stripping
+    if search_query is not None and str(search_query).strip() != "":
         query = search_query.strip()
         mask = data["PreprocessedText"].apply(lambda txt: match_advanced_query(txt, query))
-        filtered_data = filtered_data[mask]
+        if mask.sum() == 0:
+            filtered_data = data.copy()  # No results, show all instead of nothing
+        else:
+            filtered_data = filtered_data[mask]
     else:
-        filtered_data = data.copy()   # This ensures full network is shown on load
+        filtered_data = data.copy()
 
-    # --- (rest of your filtering logic) ---
+    # --- Additional filtering ---
     # [CLUSTER FILTER]
     if cluster_highlight is not None and cluster_highlight != -1:
         filtered_data = filtered_data[filtered_data["Cluster"] == cluster_highlight]
-    # [DRIVING FORCE FILTER]
+
+    # [DRIVING-FORCE FILTER]
     if driving_force_filter and isinstance(driving_force_filter, list):
         if "(All)" not in driving_force_filter:
             filtered_data = filtered_data[filtered_data["Driving Force"].isin(driving_force_filter)]
     elif driving_force_filter and driving_force_filter != "(All)":
         filtered_data = filtered_data[filtered_data["Driving Force"] == driving_force_filter]
 
+    # [SIGNALS VISIBILITY]
+    # Hide “signals” unless the toggle checklist contains "show"
     if not show_signals_toggle or "show" not in show_signals_toggle:
         filtered_data = filtered_data[filtered_data["Driving Force"].str.lower() != "signals"]
 
+    # --- Final prep ---
     filtered_data = filtered_data.reset_index(drop=True)
     show_titles = "titles" in (show_titles_value or [])
 
@@ -2248,14 +2250,13 @@ def update_tsne_plot(
         show_titles=show_titles
     )
 
-    # Prepare explorer-table data and tooltips (limit to first 20 rows)
+    # --- Explorer-table data & tooltips ---
     def short_description(desc):
         if not isinstance(desc, str):
             return ""
         words = desc.split()
-        if len(words) <= 12:
-            return desc
-        return " ".join(words[:12]) + "…"
+        return desc if len(words) <= 12 else " ".join(words[:12]) + "…"
+
     explorer_data = [
         {
             "ID": row["ID"],
@@ -2277,6 +2278,7 @@ def update_tsne_plot(
         for _, row in filtered_data.iterrows()
     ]
 
+    # --- 2D / 3D handling ---
     if network_dimension == "3d":
         initial_camera = dict(
             eye=dict(x=1.7, y=1.7, z=1.7),
@@ -2287,6 +2289,8 @@ def update_tsne_plot(
     else:
         return fig, dash.no_update, explorer_data, explorer_tooltips
 
+
+# --- Reset-camera callback (unchanged) ---
 @app.callback(
     Output("tsne-plot", "relayoutData"),
     Input("reset-camera-btn", "n_clicks"),
@@ -2298,6 +2302,7 @@ def reset_camera(n_clicks, stored_camera):
         return {"scene.camera": stored_camera}
     return dash.no_update
 
+
 #############################################
 # PAGE NAVIGATION AND APP LAYOUT
 #############################################
@@ -2306,7 +2311,6 @@ app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     html.Div(id='page-content')
 ])
-
 
 
 @app.callback(Output('page-content', 'children'), [Input('url', 'pathname')])
