@@ -1,0 +1,46 @@
+{
+  "__new_project__": {
+    "search": "ageing",
+    "cluster": -1,
+    "driving_forces": [
+      "(All)"
+    ],
+    "explorer_selected_rows": [],
+    "selected_nodes": [],
+    "chips": [],
+    "logic": "AND"
+  },
+  "Default Project": {
+    "chips": [],
+    "logic": "AND",
+    "search": "Tesla",
+    "cluster": -1,
+    "driving_forces": [
+      "(All)"
+    ],
+    "explorer_selected_rows": [],
+    "selected_nodes": []
+  },
+  "Ageing": {
+    "chips": [],
+    "logic": "AND",
+    "search": "ageing",
+    "cluster": -1,
+    "driving_forces": [
+      "(All)"
+    ],
+    "explorer_selected_rows": [],
+    "selected_nodes": []
+  },
+  "Tesla": {
+    "chips": [],
+    "logic": "AND",
+    "search": "",
+    "cluster": -1,
+    "driving_forces": [
+      "(All)"
+    ],
+    "explorer_selected_rows": [],
+    "selected_nodes": []
+  }
+}
