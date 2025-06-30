@@ -3582,9 +3582,12 @@ def unified_chip_logic_filter_callback(
     raise PreventUpdate
 
 
+
+# Ensure server start block is at the end of the file, outside any function or conditional
 if __name__ == "__main__":
     with server.app_context():
         db.create_all()
     port = int(os.environ.get("PORT", 10000))  # Render typically uses 10000
+    print("[INFO] Starting ORION Dash server...")
     app.run(host="0.0.0.0", port=port, debug=False)
 
