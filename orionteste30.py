@@ -3583,11 +3583,8 @@ def unified_chip_logic_filter_callback(
 
 
 if __name__ == "__main__":
-    # logger.debug("Starting ORION app...")
     with server.app_context():
-        # logger.debug("Before db.create_all()")
         db.create_all()
-        # logger.debug("After db.create_all()")
-    port = int(os.environ.get("PORT", 8050))
+    port = int(os.environ.get("PORT", 10000))  # Render typically uses 10000
     app.run(host="0.0.0.0", port=port, debug=False)
 
