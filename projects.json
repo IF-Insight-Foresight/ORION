@@ -13,7 +13,7 @@
   "Default Project": {
     "chips": [],
     "logic": "AND",
-    "search": "Tesla",
+    "search": "",
     "cluster": -1,
     "driving_forces": [
       "(All)"
@@ -33,6 +33,28 @@
     "selected_nodes": []
   },
   "Tesla": {
+    "chips": [],
+    "logic": "AND",
+    "search": "",
+    "cluster": -1,
+    "driving_forces": [
+      "(All)"
+    ],
+    "explorer_selected_rows": [],
+    "selected_nodes": []
+  },
+  "Teste": {
+    "chips": [],
+    "logic": "AND",
+    "search": "",
+    "cluster": -1,
+    "driving_forces": [
+      "(All)"
+    ],
+    "explorer_selected_rows": [],
+    "selected_nodes": []
+  },
+  "Longevity": {
     "chips": [],
     "logic": "AND",
     "search": "",

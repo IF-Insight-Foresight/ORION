@@ -80,13 +80,31 @@ embeddings = embedder.encode(
 )
 
 # 5) UMAP to 3‑D coordinates (layout for Dash)
-umap_3d = umap.UMAP(n_components=3, metric="cosine", random_state=42)
+umap_3d = umap.UMAP(
+    n_components=3,
+    metric="cosine",
+    random_state=42,
+    min_dist=0.01,   # default is 0.1, smaller packs clusters tighter
+    spread=1.0,      # can tune if needed
+    n_neighbors=20   # increase for stronger cluster structure
+)
 coords_3d = umap_3d.fit_transform(embeddings)
 
 print("UMAP 3‑D coords min/max:")
 print("x:", np.min(coords_3d[:, 0]), np.max(coords_3d[:, 0]))
 print("y:", np.min(coords_3d[:, 1]), np.max(coords_3d[:, 1]))
 print("z:", np.min(coords_3d[:, 2]), np.max(coords_3d[:, 2]))
+
+# --- UMAP 2D coordinates for clearer, denser cluster plots ---
+umap_2d = umap.UMAP(
+    n_components=2,
+    metric="cosine",
+    random_state=42,
+    min_dist=0.001,   # much tighter clusters
+    spread=1.2,       # slight cluster separation
+    n_neighbors=15    # a bit more local structure
+)
+coords_2d = umap_2d.fit_transform(embeddings)
 
 # 6) Louvain community detection on a k-NN graph
 knn = NearestNeighbors(n_neighbors=15, metric="cosine").fit(embeddings)
@@ -98,7 +116,7 @@ if hasattr(nx, "from_scipy_sparse_array"):
 else:  # NetworkX ≤ 2.8
     G = nx.from_scipy_sparse_matrix(knn_graph)
 
-partition = community_louvain.best_partition(G, resolution=1.2, random_state=42)
+partition = community_louvain.best_partition(G, resolution=1.4, random_state=42)
 cluster_labels = np.array([partition[i] for i in range(len(data))])
 
 # 7) Generate human‑readable cluster titles with KeyBERT
@@ -121,6 +139,8 @@ features = {
     "tsne_x": coords_3d[:, 0].astype(float).tolist(),
     "tsne_y": coords_3d[:, 1].astype(float).tolist(),
     "tsne_z": coords_3d[:, 2].astype(float).tolist(),  # Added Z
+    "umap2d_x": coords_2d[:, 0].astype(float).tolist(),
+    "umap2d_y": coords_2d[:, 1].astype(float).tolist(),
     "cluster_labels": cluster_labels.tolist(),
     "cluster_titles": cluster_titles,
     "days_since_created": data["DaysSinceCreated"].tolist(),
